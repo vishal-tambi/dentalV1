@@ -59,8 +59,8 @@ app.use((err, req, res, next) => {
 });
 
 // Catch all handler for API
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'client', 'dist', 'index.html'));
+app.get("/*", (req, res) => {
+  res.sendFile(path.join(__dirname, "client", "dist", "index.html"));
 });
 
 
