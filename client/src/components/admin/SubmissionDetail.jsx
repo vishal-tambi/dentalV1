@@ -103,8 +103,9 @@ const SubmissionDetail = ({ submission, onBack }) => {
 
         {currentSubmission.originalImagePath && (
           // Update the AnnotationCanvas imageUrl prop
+          // Pass Cloudinary URL directly
           <AnnotationCanvas
-            imageUrl={`/api/submissions/${currentSubmission._id}/image/original`}
+            imageUrl={currentSubmission.originalImageUrl}
             existingAnnotations={currentSubmission.annotationData}
             onSave={handleAnnotationSave}
             disabled={loading}

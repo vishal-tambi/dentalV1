@@ -11,7 +11,7 @@ const SubmissionList = ({ refreshTrigger }) => {
       setLoading(true);
       const response = await submissionsAPI.getAll();
       setSubmissions(response.data.submissions);
-    } catch (error) {
+    } catch (error) { 
       setError('Failed to fetch submissions');
     } finally {
       setLoading(false);
@@ -88,57 +88,61 @@ const SubmissionList = ({ refreshTrigger }) => {
 
   return (
     <div className="space-y-4">
-      {submissions.map((submission) => (
-        <div key={submission._id} className="card">
-          <div className="flex justify-between items-start mb-3">
-            <div>
-              <h3 className="font-semibold text-gray-900">
-                {submission.patientName}
-              </h3>
-              <p className="text-sm text-gray-600">ID: {submission.patientId}</p>
+      {submissions.map((submission) => {
+        console.log('Submission in SubmissionList:', submission); // Add this line
+        return (
+          <div key={submission._id} className="card">
+            <div className="flex justify-between items-start mb-3">
+              <div>
+                <h3 className="font-semibold text-gray-900">
+                  {submission.patientName}
+                </h3>
+                <p className="text-sm text-gray-600">ID: {submission.patientId}</p>
+              </div>
+              <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusBadge(submission.status)}`}>
+                {getStatusText(submission.status)}
+              </span>
             </div>
-            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusBadge(submission.status)}`}>
-              {getStatusText(submission.status)}
-            </span>
-          </div>
 
-          <div className="space-y-2 text-sm text-gray-600">
-            <p><strong>Uploaded:</strong> {new Date(submission.createdAt).toLocaleDateString()}</p>
-            {submission.note && (
-              <p><strong>Notes:</strong> {submission.note}</p>
-            )}
-          </div>
-
-          <div className="mt-4 flex gap-2">
-            {submission.originalImage && submission.originalImage.hasData && (
-              <img
-                src={`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/api/submissions/${submission._id}/image/original`}
-                alt="Uploaded dental image"
-                className="w-20 h-20 object-cover rounded border"
-              />
-            )}
-
-            {submission.annotatedImage && submission.annotatedImage.hasData && (
-              <img
-                src={`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/api/submissions/${submission._id}/image/annotated`}
-                alt="Annotated dental image"
-                className="w-20 h-20 object-cover rounded border"
-              />
-            )}
-          </div>
-
-          {submission.status === 'reported' && (
-            <div className="mt-4">
-              <button
-                onClick={() => handleDownloadPDF(submission._id, submission.patientId)}
-                className="btn-primary"
-              >
-                Download Report PDF
-              </button>
+            <div className="space-y-2 text-sm text-gray-600">
+              <p><strong>Uploaded:</strong> {new Date(submission.createdAt).toLocaleDateString()}</p>
+              {submission.note && (
+                <p><strong>Notes:</strong> {submission.note}</p>
+              )}
             </div>
-          )}
-        </div>
-      ))}
+
+            <div className="mt-4 flex gap-2">
+              {/* Replace image display with direct Cloudinary URLs */}
+              {submission.originalImageUrl && (
+                <img
+                  src={submission.originalImageUrl}
+                  alt="Uploaded dental image"
+                  className="w-20 h-20 object-cover rounded border"
+                />
+              )}
+
+              {submission.annotatedImageUrl && (
+                <img
+                  src={submission.annotatedImageUrl}
+                  alt="Annotated dental image"
+                  className="w-20 h-20 object-cover rounded border"
+                />
+              )}
+            </div>
+
+            {submission.status === 'reported' && (
+              <div className="mt-4">
+                <button
+                  onClick={() => handleDownloadPDF(submission._id, submission.patientId)}
+                  className="btn-primary"
+                >
+                  Download Report PDF
+                </button>
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 };

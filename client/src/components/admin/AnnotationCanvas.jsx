@@ -10,12 +10,12 @@ const AnnotationCanvas = ({ imageUrl, existingAnnotations, onSave, disabled }) =
   const [image, setImage] = useState(null);
   const [canvasSize, setCanvasSize] = useState({ width: 800, height: 600 }); // ✅ This was missing!
 
+  // Just use the URL directly (no API endpoint needed)
   useEffect(() => {
     const img = new Image();
     img.crossOrigin = "anonymous";
     img.onload = () => {
       setImage(img);
-
       // Calculate canvas size to fit image
       const maxWidth = 800;
       const maxHeight = 600;
@@ -47,10 +47,8 @@ const AnnotationCanvas = ({ imageUrl, existingAnnotations, onSave, disabled }) =
       console.error('Failed to load image:', imageUrl, error);
       alert('Failed to load image. Please try refreshing the page.');
     };
-
-    const apiBaseUrl = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
-    img.src = imageUrl.startsWith('http') ? imageUrl : `${apiBaseUrl}${imageUrl}`;
-  }, [imageUrl]);
+  img.src = imageUrl; // Direct Cloudinary URL
+}, [imageUrl]);
 
   useEffect(() => {
     if (image && canvasSize.width > 0) {
@@ -286,8 +284,8 @@ const AnnotationCanvas = ({ imageUrl, existingAnnotations, onSave, disabled }) =
               key={tool.id}
               onClick={() => setCurrentTool(tool.id)}
               className={`px-3 py-2 rounded text-sm font-medium transition-colors ${currentTool === tool.id
-                  ? 'bg-blue-600 text-white shadow-md'
-                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                ? 'bg-blue-600 text-white shadow-md'
+                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                 }`}
               disabled={disabled}
             >
