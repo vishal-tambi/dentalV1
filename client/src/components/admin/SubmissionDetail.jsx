@@ -101,7 +101,7 @@ const SubmissionDetail = ({ submission, onBack }) => {
       <div className="card">
         <h2 className="text-xl font-semibold mb-4">Image Review & Annotation</h2>
 
-        {currentSubmission.originalImagePath && (
+        {currentSubmission.originalImageUrl && (
           // Update the AnnotationCanvas imageUrl prop
           // Pass Cloudinary URL directly
           <AnnotationCanvas
