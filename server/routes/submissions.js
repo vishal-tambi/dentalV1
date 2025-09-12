@@ -6,7 +6,6 @@ const cloudinary = require('cloudinary').v2;
 const { CloudinaryStorage } = require('multer-storage-cloudinary');
 const Submission = require('../models/Submission');
 const { auth, adminOnly } = require('../middleware/auth');
-const rateLimit = require('express-rate-limit');
 
 // Configuration constants
 const PDF_CONFIG = {
@@ -91,13 +90,6 @@ const uploadErrorHandler = (err, req, res, next) => {
 };
 router.use(uploadErrorHandler);
 
-// Rate limiter for PDF generation
-const pdfGenerationLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 10,
-  message: 'Too many PDF generation requests, please try again later.'
-});
-
 // Helper function to validate Cloudinary URLs
 const isValidCloudinaryUrl = (url) => {
   return url && url.startsWith('https://res.cloudinary.com/');
@@ -163,7 +155,7 @@ const addImageToPdf = async (doc, imageUrl, label, x, y, options) => {
 };
 
 // Generate PDF report (Admin only)
-router.post('/:id/generate-pdf', auth, adminOnly, pdfGenerationLimiter, async (req, res) => {
+router.post('/:id/generate-pdf', auth, adminOnly, async (req, res) => {
   try {
     const submission = await Submission.findById(req.params.id);
     
