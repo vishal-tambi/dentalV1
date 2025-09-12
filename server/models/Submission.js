@@ -6,25 +6,15 @@ const submissionSchema = new mongoose.Schema({
   email: { type: String, required: true },
   note: { type: String },
   
-  // Store images as Base64 strings in MongoDB
-  originalImage: {
-    data: { type: String }, // Base64 image data
-    contentType: { type: String }, // image/jpeg, image/png, etc.
-    filename: { type: String }
-  },
+  // Store Cloudinary URLs (much simpler!)
+  originalImageUrl: { type: String },
+  originalImagePublicId: { type: String },
   
-  annotatedImage: {
-    data: { type: String }, // Base64 annotated image
-    contentType: { type: String },
-    filename: { type: String }
-  },
+  annotatedImageUrl: { type: String },
+  annotatedImagePublicId: { type: String },
   
-  // Store PDF as Base64 string in MongoDB
-  reportPDF: {
-    data: { type: String }, // Base64 PDF data
-    contentType: { type: String, default: 'application/pdf' },
-    filename: { type: String }
-  },
+  reportPdfUrl: { type: String },
+  reportPdfPublicId: { type: String },
   
   annotationData: { type: Object },
   status: { 

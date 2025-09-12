@@ -2,13 +2,30 @@ const express = require('express');
 const multer = require('multer');
 const path = require('path');
 const PDFDocument = require('pdfkit');
+const cloudinary = require('cloudinary').v2;
+const { CloudinaryStorage } = require('multer-storage-cloudinary');
 const Submission = require('../models/Submission');
 const { auth, adminOnly } = require('../middleware/auth');
 
 const router = express.Router();
 
-// Configure multer for memory storage (not disk)
-const storage = multer.memoryStorage();
+// Configure Cloudinary
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET
+});
+
+// Configure multer with Cloudinary storage
+const storage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: {
+    folder: 'oralvis/images',
+    allowed_formats: ['jpg', 'jpeg', 'png'],
+    transformation: [{ width: 1000, height: 1000, crop: 'limit', quality: 'auto' }]
+  }
+});
+
 const upload = multer({
   storage: storage,
   limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
@@ -25,17 +42,25 @@ const upload = multer({
   }
 });
 
-// Helper function to convert buffer to base64
-const bufferToBase64 = (buffer) => {
-  return buffer.toString('base64');
+// Helper function to upload buffer to Cloudinary
+const uploadBufferToCloudinary = (buffer, folder, filename) => {
+  return new Promise((resolve, reject) => {
+    const uploadStream = cloudinary.uploader.upload_stream(
+      {
+        folder: `oralvis/${folder}`,
+        public_id: filename,
+        resource_type: 'auto'
+      },
+      (error, result) => {
+        if (error) reject(error);
+        else resolve(result);
+      }
+    );
+    uploadStream.end(buffer);
+  });
 };
 
-// Helper function to convert base64 to buffer
-const base64ToBuffer = (base64String) => {
-  return Buffer.from(base64String, 'base64');
-};
-
-// Create submission (Patient)
+// Create submission (Patient) - Upload to Cloudinary
 router.post('/', auth, upload.single('image'), async (req, res) => {
   try {
     const { patientName, patientId, email, note } = req.body;
@@ -44,37 +69,23 @@ router.post('/', auth, upload.single('image'), async (req, res) => {
       return res.status(400).json({ message: 'Image is required' });
     }
 
-    // Convert uploaded image to base64 and store in MongoDB
-    const originalImageBase64 = bufferToBase64(req.file.buffer);
+    console.log('Cloudinary upload result:', req.file);
 
     const submission = new Submission({
       patientId,
       patientName,
       email,
       note,
-      originalImage: {
-        data: originalImageBase64,
-        contentType: req.file.mimetype,
-        filename: req.file.originalname
-      },
+      originalImageUrl: req.file.path,
+      originalImagePublicId: req.file.public_id,
       userId: req.user._id
     });
 
     await submission.save();
 
-    // Return submission without the large base64 data for response
-    const submissionResponse = {
-      ...submission.toObject(),
-      originalImage: {
-        contentType: submission.originalImage.contentType,
-        filename: submission.originalImage.filename,
-        hasData: !!submission.originalImage.data
-      }
-    };
-
     res.status(201).json({
       message: 'Submission created successfully',
-      submission: submissionResponse
+      submission
     });
   } catch (error) {
     console.error('Submission creation error:', error);
@@ -93,27 +104,7 @@ router.get('/', auth, async (req, res) => {
       submissions = await Submission.find({ userId: req.user._id }).sort({ createdAt: -1 });
     }
 
-    // Remove base64 data from response (too large)
-    const submissionsResponse = submissions.map(submission => ({
-      ...submission.toObject(),
-      originalImage: submission.originalImage ? {
-        contentType: submission.originalImage.contentType,
-        filename: submission.originalImage.filename,
-        hasData: !!submission.originalImage.data
-      } : null,
-      annotatedImage: submission.annotatedImage ? {
-        contentType: submission.annotatedImage.contentType,
-        filename: submission.annotatedImage.filename,
-        hasData: !!submission.annotatedImage.data
-      } : null,
-      reportPDF: submission.reportPDF ? {
-        contentType: submission.reportPDF.contentType,
-        filename: submission.reportPDF.filename,
-        hasData: !!submission.reportPDF.data
-      } : null
-    }));
-
-    res.json({ submissions: submissionsResponse });
+    res.json({ submissions });
   } catch (error) {
     console.error('Get submissions error:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
@@ -134,68 +125,13 @@ router.get('/:id', auth, async (req, res) => {
       return res.status(403).json({ message: 'Access denied' });
     }
 
-    // Return submission without full base64 data
-    const submissionResponse = {
-      ...submission.toObject(),
-      originalImage: submission.originalImage ? {
-        contentType: submission.originalImage.contentType,
-        filename: submission.originalImage.filename,
-        hasData: !!submission.originalImage.data
-      } : null,
-      annotatedImage: submission.annotatedImage ? {
-        contentType: submission.annotatedImage.contentType,
-        filename: submission.annotatedImage.filename,
-        hasData: !!submission.annotatedImage.data
-      } : null
-    };
-
-    res.json({ submission: submissionResponse });
+    res.json({ submission });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
 
-// Get image data (for displaying images)
-router.get('/:id/image/:type', auth, async (req, res) => {
-  try {
-    const { id, type } = req.params; // type: 'original' or 'annotated'
-    
-    const submission = await Submission.findById(id);
-    
-    if (!submission) {
-      return res.status(404).json({ message: 'Submission not found' });
-    }
-
-    // Check access rights
-    if (req.user.role !== 'admin' && submission.userId.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ message: 'Access denied' });
-    }
-
-    let imageData;
-    if (type === 'original' && submission.originalImage) {
-      imageData = submission.originalImage;
-    } else if (type === 'annotated' && submission.annotatedImage) {
-      imageData = submission.annotatedImage;
-    } else {
-      return res.status(404).json({ message: 'Image not found' });
-    }
-
-    // Convert base64 back to buffer and send as image
-    const imageBuffer = base64ToBuffer(imageData.data);
-    
-    res.set({
-      'Content-Type': imageData.contentType,
-      'Content-Length': imageBuffer.length
-    });
-    
-    res.send(imageBuffer);
-  } catch (error) {
-    console.error('Image retrieval error:', error);
-    res.status(500).json({ message: 'Server error', error: error.message });
-  }
-});
-
-// Save annotation (Admin only)
+// Save annotation (Admin only) - Upload annotated image to Cloudinary
 router.put('/:id/annotate', auth, adminOnly, async (req, res) => {
   try {
     const { annotationData, annotatedImageDataUrl } = req.body;
@@ -210,35 +146,38 @@ router.put('/:id/annotate', auth, adminOnly, async (req, res) => {
       return res.status(400).json({ message: 'Annotation data is required' });
     }
 
-    let annotatedImageData = null;
+    let annotatedImageUrl = null;
+    let annotatedImagePublicId = null;
     
-    // Save the annotated image from canvas to MongoDB
+    // Upload annotated image to Cloudinary
     if (annotatedImageDataUrl) {
       try {
-        // Remove data URL prefix and convert to base64
+        // Convert base64 to buffer
         const base64Data = annotatedImageDataUrl.replace(/^data:image\/[a-z]+;base64,/, '');
-        const contentType = annotatedImageDataUrl.match(/data:([a-zA-Z0-9]+\/[a-zA-Z0-9-.+]+).*,.*/);
+        const buffer = Buffer.from(base64Data, 'base64');
         
-        annotatedImageData = {
-          data: base64Data,
-          contentType: contentType ? contentType[1] : 'image/jpeg',
-          filename: `annotated-${req.params.id}-${Date.now()}.jpg`
-        };
+        // Upload to Cloudinary
+        const filename = `annotated-${req.params.id}-${Date.now()}`;
+        const uploadResult = await uploadBufferToCloudinary(buffer, 'annotated', filename);
         
-        console.log('Annotated image prepared for MongoDB storage');
+        annotatedImageUrl = uploadResult.secure_url;
+        annotatedImagePublicId = uploadResult.public_id;
+        
+        console.log('Annotated image uploaded to Cloudinary:', uploadResult.secure_url);
         
       } catch (error) {
-        console.error('Error preparing annotated image:', error);
-        return res.status(500).json({ message: 'Failed to process annotated image' });
+        console.error('Error uploading annotated image:', error);
+        return res.status(500).json({ message: 'Failed to upload annotated image' });
       }
     }
 
-    // Update submission in MongoDB
+    // Update submission
     const submission = await Submission.findByIdAndUpdate(
       req.params.id,
       {
         annotationData,
-        annotatedImage: annotatedImageData,
+        annotatedImageUrl,
+        annotatedImagePublicId,
         status: 'annotated'
       },
       { new: true }
@@ -248,19 +187,9 @@ router.put('/:id/annotate', auth, adminOnly, async (req, res) => {
       return res.status(404).json({ message: 'Submission not found' });
     }
 
-    // Return response without large base64 data
-    const submissionResponse = {
-      ...submission.toObject(),
-      annotatedImage: submission.annotatedImage ? {
-        contentType: submission.annotatedImage.contentType,
-        filename: submission.annotatedImage.filename,
-        hasData: !!submission.annotatedImage.data
-      } : null
-    };
-
     res.json({ 
       message: 'Annotation saved successfully', 
-      submission: submissionResponse
+      submission
     });
   } catch (error) {
     console.error('Annotation save error:', error);
@@ -268,7 +197,7 @@ router.put('/:id/annotate', auth, adminOnly, async (req, res) => {
   }
 });
 
-// Generate PDF report (Admin only)
+// Generate PDF report (Admin only) - Upload PDF to Cloudinary
 router.post('/:id/generate-pdf', auth, adminOnly, async (req, res) => {
   try {
     const submission = await Submission.findById(req.params.id);
@@ -307,7 +236,7 @@ router.post('/:id/generate-pdf', auth, adminOnly, async (req, res) => {
       doc.moveTo(50, doc.y).lineTo(550, doc.y).stroke();
       doc.moveDown(0.5);
 
-      // Patient Information Section
+      // Patient Information
       doc.fontSize(16).fillColor('#374151').text('Patient Information', 50, doc.y);
       doc.fontSize(12).fillColor('#6b7280');
       
@@ -332,52 +261,46 @@ router.post('/:id/generate-pdf', auth, adminOnly, async (req, res) => {
 
       let imageY = doc.y;
 
-      // Add original image if exists
-      if (submission.originalImage && submission.originalImage.data) {
-        try {
-          const originalBuffer = base64ToBuffer(submission.originalImage.data);
-          doc.fontSize(12).fillColor('#374151').text('Original Image:', 50, imageY);
-          doc.image(originalBuffer, 50, imageY + 15, { 
-            width: 200, 
-            height: 150,
-            fit: [200, 150]
-          });
-          console.log('Original image added to PDF');
-        } catch (error) {
-          console.error('Error adding original image to PDF:', error);
-          doc.text('Original image could not be loaded', 50, imageY + 15);
+      // Add images from Cloudinary URLs
+      const addImage = async (imageUrl, label, x, y) => {
+        if (imageUrl) {
+          try {
+            doc.fontSize(12).fillColor('#374151').text(label, x, y);
+            doc.image(imageUrl, x, y + 15, { 
+              width: 200, 
+              height: 150,
+              fit: [200, 150]
+            });
+            console.log(`${label} added to PDF from Cloudinary`);
+          } catch (error) {
+            console.error(`Error adding ${label} to PDF:`, error);
+            doc.text(`${label} could not be loaded`, x, y + 15);
+          }
         }
+      };
+
+      // Add original image
+      if (submission.originalImageUrl) {
+        addImage(submission.originalImageUrl, 'Original Image:', 50, imageY);
       }
 
-      // Add annotated image if exists
-      if (submission.annotatedImage && submission.annotatedImage.data) {
-        try {
-          const annotatedBuffer = base64ToBuffer(submission.annotatedImage.data);
-          doc.fontSize(12).fillColor('#374151').text('Annotated Image (with Doctor\'s Notes):', 300, imageY);
-          doc.image(annotatedBuffer, 300, imageY + 15, { 
-            width: 200, 
-            height: 150,
-            fit: [200, 150]
-          });
-          console.log('Annotated image added to PDF');
+      // Add annotated image  
+      if (submission.annotatedImageUrl) {
+        addImage(submission.annotatedImageUrl, 'Annotated Image (with Doctor\'s Notes):', 300, imageY);
+        
+        // Add annotation summary
+        if (submission.annotationData && submission.annotationData.shapes) {
+          doc.moveDown(10);
+          doc.fontSize(12).fillColor('#374151').text('Annotation Summary:', 50, doc.y);
+          doc.fontSize(10).fillColor('#6b7280');
           
-          // Add annotation summary
-          if (submission.annotationData && submission.annotationData.shapes) {
-            doc.moveDown(10);
-            doc.fontSize(12).fillColor('#374151').text('Annotation Summary:', 50, doc.y);
-            doc.fontSize(10).fillColor('#6b7280');
-            
-            submission.annotationData.shapes.forEach((shape, index) => {
-              const shapeText = `${index + 1}. ${shape.type.charAt(0).toUpperCase() + shape.type.slice(1)} marking (${shape.color})`;
-              doc.text(shapeText, 70, doc.y + 5);
-            });
-            
-            doc.text(`Total annotations: ${submission.annotationData.shapes.length}`, 70, doc.y + 5);
-            doc.text(`Annotated on: ${new Date(submission.annotationData.timestamp || submission.updatedAt).toLocaleDateString()}`, 70, doc.y + 5);
-          }
-        } catch (error) {
-          console.error('Error adding annotated image to PDF:', error);
-          doc.text('Annotated image could not be loaded', 300, imageY + 15);
+          submission.annotationData.shapes.forEach((shape, index) => {
+            const shapeText = `${index + 1}. ${shape.type.charAt(0).toUpperCase() + shape.type.slice(1)} marking (${shape.color})`;
+            doc.text(shapeText, 70, doc.y + 5);
+          });
+          
+          doc.text(`Total annotations: ${submission.annotationData.shapes.length}`, 70, doc.y + 5);
+          doc.text(`Annotated on: ${new Date(submission.annotationData.timestamp || submission.updatedAt).toLocaleDateString()}`, 70, doc.y + 5);
         }
       }
 
@@ -396,31 +319,21 @@ router.post('/:id/generate-pdf', auth, adminOnly, async (req, res) => {
       doc.end();
     });
 
-    // Convert PDF buffer to base64 and store in MongoDB
-    const pdfBase64 = bufferToBase64(pdfBuffer);
-    const pdfFilename = `report-${submission._id}-${Date.now()}.pdf`;
+    // Upload PDF to Cloudinary
+    const pdfFilename = `report-${submission._id}-${Date.now()}`;
+    const pdfUploadResult = await uploadBufferToCloudinary(pdfBuffer, 'reports', pdfFilename);
 
     // Update submission with PDF data
-    submission.reportPDF = {
-      data: pdfBase64,
-      contentType: 'application/pdf',
-      filename: pdfFilename
-    };
+    submission.reportPdfUrl = pdfUploadResult.secure_url;
+    submission.reportPdfPublicId = pdfUploadResult.public_id;
     submission.status = 'reported';
     await submission.save();
 
-    console.log('PDF generated and saved to MongoDB successfully');
+    console.log('PDF generated and uploaded to Cloudinary successfully');
 
     res.json({ 
       message: 'PDF generated successfully', 
-      submission: {
-        ...submission.toObject(),
-        reportPDF: {
-          contentType: submission.reportPDF.contentType,
-          filename: submission.reportPDF.filename,
-          hasData: !!submission.reportPDF.data
-        }
-      }
+      submission
     });
   } catch (error) {
     console.error('PDF generation error:', error);
@@ -442,20 +355,12 @@ router.get('/:id/download-pdf', auth, async (req, res) => {
       return res.status(403).json({ message: 'Access denied' });
     }
 
-    if (!submission.reportPDF || !submission.reportPDF.data) {
+    if (!submission.reportPdfUrl) {
       return res.status(404).json({ message: 'PDF not found' });
     }
 
-    // Convert base64 back to buffer and send as PDF
-    const pdfBuffer = base64ToBuffer(submission.reportPDF.data);
-    
-    res.set({
-      'Content-Type': 'application/pdf',
-      'Content-Disposition': `attachment; filename="${submission.reportPDF.filename}"`,
-      'Content-Length': pdfBuffer.length
-    });
-    
-    res.send(pdfBuffer);
+    // Redirect to Cloudinary URL for download
+    res.redirect(submission.reportPdfUrl);
   } catch (error) {
     console.error('PDF download error:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
