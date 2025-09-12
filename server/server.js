@@ -59,9 +59,10 @@ app.use((err, req, res, next) => {
 });
 
 // Catch all handler for API
-app.get('/api/*', (req, res) => {
-  res.status(404).json({ message: 'API endpoint not found' });
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'client', 'dist', 'index.html'));
 });
+
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, '0.0.0.0', () => {
