@@ -107,14 +107,12 @@ const AdminDashboard = () => {
               )}
             </div>
 
-            {submission.originalImagePath && (
-              <div className="mb-4">
-                <img
-                  src={`http://localhost:5000/${submission.originalImagePath}`}
-                  alt="Patient dental image"
-                  className="w-full h-32 object-cover rounded border"
-                />
-              </div>
+            {submission.originalImage && submission.originalImage.hasData && (
+              <img
+                src={`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/api/submissions/${submission._id}/image/original`}
+                alt="Patient dental image"
+                className="w-full h-32 object-cover rounded border"
+              />
             )}
 
             <button

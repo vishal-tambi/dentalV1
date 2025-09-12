@@ -25,7 +25,7 @@ const SubmissionList = ({ refreshTrigger }) => {
   const handleDownloadPDF = async (submissionId, patientId) => {
     try {
       const response = await submissionsAPI.downloadPDF(submissionId);
-      
+
       // Create blob and download
       const blob = new Blob([response.data], { type: 'application/pdf' });
       const url = window.URL.createObjectURL(blob);
@@ -110,17 +110,18 @@ const SubmissionList = ({ refreshTrigger }) => {
           </div>
 
           <div className="mt-4 flex gap-2">
-            {submission.originalImagePath && (
+            // Replace the image display parts with API calls
+            {submission.originalImage && submission.originalImage.hasData && (
               <img
-                src={`http://localhost:5000/${submission.originalImagePath}`}
+                src={`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/api/submissions/${submission._id}/image/original`}
                 alt="Uploaded dental image"
                 className="w-20 h-20 object-cover rounded border"
               />
             )}
-            
-            {submission.annotatedImagePath && (
+
+            {submission.annotatedImage && submission.annotatedImage.hasData && (
               <img
-                src={`http://localhost:5000/${submission.annotatedImagePath}`}
+                src={`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/api/submissions/${submission._id}/image/annotated`}
                 alt="Annotated dental image"
                 className="w-20 h-20 object-cover rounded border"
               />

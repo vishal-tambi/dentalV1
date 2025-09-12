@@ -15,12 +15,12 @@ const AnnotationCanvas = ({ imageUrl, existingAnnotations, onSave, disabled }) =
     img.crossOrigin = "anonymous";
     img.onload = () => {
       setImage(img);
-      
+
       // Calculate canvas size to fit image
       const maxWidth = 800;
       const maxHeight = 600;
       let { width, height } = img;
-      
+
       // Scale image to fit within max dimensions while maintaining aspect ratio
       if (width > maxWidth) {
         height = (height * maxWidth) / width;
@@ -30,25 +30,26 @@ const AnnotationCanvas = ({ imageUrl, existingAnnotations, onSave, disabled }) =
         width = (width * maxHeight) / height;
         height = maxHeight;
       }
-      
+
       const newCanvasSize = { width: Math.floor(width), height: Math.floor(height) };
       setCanvasSize(newCanvasSize);
-      
-      console.log('Image loaded:', { 
+
+      console.log('Image loaded:', {
         original: { width: img.width, height: img.height },
-        canvas: newCanvasSize 
+        canvas: newCanvasSize
       });
-      
+
       // Draw canvas after state is updated
       setTimeout(() => drawCanvas(img, annotations), 100);
     };
-    
+
     img.onerror = (error) => {
       console.error('Failed to load image:', imageUrl, error);
       alert('Failed to load image. Please try refreshing the page.');
     };
-    
-    img.src = imageUrl;
+
+    const apiBaseUrl = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
+    img.src = imageUrl.startsWith('http') ? imageUrl : `${apiBaseUrl}${imageUrl}`;
   }, [imageUrl]);
 
   useEffect(() => {
@@ -60,28 +61,28 @@ const AnnotationCanvas = ({ imageUrl, existingAnnotations, onSave, disabled }) =
   const drawCanvas = (img, shapes = []) => {
     const canvas = canvasRef.current;
     if (!canvas || !img) return;
-    
+
     const ctx = canvas.getContext('2d');
-    
+
     // Set canvas size
     canvas.width = canvasSize.width;
     canvas.height = canvasSize.height;
-    
+
     // Clear canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    
+
     // Draw image
     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-    
+
     // Draw existing annotations
     shapes.forEach(shape => {
       ctx.strokeStyle = shape.color;
       ctx.lineWidth = 3;
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
-      
+
       ctx.beginPath();
-      
+
       if (shape.type === 'rectangle') {
         ctx.rect(shape.x, shape.y, shape.width, shape.height);
       } else if (shape.type === 'circle') {
@@ -90,7 +91,7 @@ const AnnotationCanvas = ({ imageUrl, existingAnnotations, onSave, disabled }) =
         // Draw arrow line
         ctx.moveTo(shape.startX, shape.startY);
         ctx.lineTo(shape.endX, shape.endY);
-        
+
         // Draw arrowhead
         const angle = Math.atan2(shape.endY - shape.startY, shape.endX - shape.startX);
         const headLength = 15;
@@ -105,7 +106,7 @@ const AnnotationCanvas = ({ imageUrl, existingAnnotations, onSave, disabled }) =
           shape.endY - headLength * Math.sin(angle + Math.PI / 6)
         );
       }
-      
+
       ctx.stroke();
     });
   };
@@ -113,11 +114,11 @@ const AnnotationCanvas = ({ imageUrl, existingAnnotations, onSave, disabled }) =
   const getMousePos = (e) => {
     const canvas = canvasRef.current;
     const rect = canvas.getBoundingClientRect();
-    
+
     // Calculate scale factor between displayed size and actual canvas size
     const scaleX = canvas.width / rect.width;
     const scaleY = canvas.height / rect.height;
-    
+
     return {
       x: (e.clientX - rect.left) * scaleX,
       y: (e.clientY - rect.top) * scaleY
@@ -126,7 +127,7 @@ const AnnotationCanvas = ({ imageUrl, existingAnnotations, onSave, disabled }) =
 
   const handleMouseDown = (e) => {
     if (disabled) return;
-    
+
     const pos = getMousePos(e);
     setIsDrawing(true);
     setStartPos(pos);
@@ -134,14 +135,14 @@ const AnnotationCanvas = ({ imageUrl, existingAnnotations, onSave, disabled }) =
 
   const handleMouseUp = (e) => {
     if (!isDrawing || disabled) return;
-    
+
     const pos = getMousePos(e);
     let newShape = null;
 
     if (currentTool === 'rectangle') {
       const width = Math.abs(pos.x - startPos.x);
       const height = Math.abs(pos.y - startPos.y);
-      
+
       if (width > 5 && height > 5) {
         newShape = {
           type: 'rectangle',
@@ -156,7 +157,7 @@ const AnnotationCanvas = ({ imageUrl, existingAnnotations, onSave, disabled }) =
       const radius = Math.sqrt(
         Math.pow(pos.x - startPos.x, 2) + Math.pow(pos.y - startPos.y, 2)
       );
-      
+
       if (radius > 5) {
         newShape = {
           type: 'circle',
@@ -170,7 +171,7 @@ const AnnotationCanvas = ({ imageUrl, existingAnnotations, onSave, disabled }) =
       const distance = Math.sqrt(
         Math.pow(pos.x - startPos.x, 2) + Math.pow(pos.y - startPos.y, 2)
       );
-      
+
       if (distance > 10) {
         newShape = {
           type: 'arrow',
@@ -194,7 +195,7 @@ const AnnotationCanvas = ({ imageUrl, existingAnnotations, onSave, disabled }) =
 
   const handleSave = () => {
     const canvas = canvasRef.current;
-    
+
     // Check if we have annotations and canvas is ready
     if (!canvas || annotations.length === 0) {
       alert('Please add some annotations before saving');
@@ -284,27 +285,25 @@ const AnnotationCanvas = ({ imageUrl, existingAnnotations, onSave, disabled }) =
             <button
               key={tool.id}
               onClick={() => setCurrentTool(tool.id)}
-              className={`px-3 py-2 rounded text-sm font-medium transition-colors ${
-                currentTool === tool.id 
-                  ? 'bg-blue-600 text-white shadow-md' 
+              className={`px-3 py-2 rounded text-sm font-medium transition-colors ${currentTool === tool.id
+                  ? 'bg-blue-600 text-white shadow-md'
                   : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-              }`}
+                }`}
               disabled={disabled}
             >
               {tool.icon} {tool.name}
             </button>
           ))}
         </div>
-        
+
         <div className="flex gap-1 items-center">
           <span className="text-sm font-medium text-gray-700 mr-2">Colors:</span>
           {colors.map(color => (
             <button
               key={color}
               onClick={() => setCurrentColor(color)}
-              className={`w-8 h-8 rounded-full border-2 transition-all ${
-                currentColor === color ? 'border-gray-800 scale-110' : 'border-gray-300 hover:scale-105'
-              }`}
+              className={`w-8 h-8 rounded-full border-2 transition-all ${currentColor === color ? 'border-gray-800 scale-110' : 'border-gray-300 hover:scale-105'
+                }`}
               style={{ backgroundColor: color }}
               disabled={disabled}
               title={`Select ${color}`}
@@ -332,9 +331,9 @@ const AnnotationCanvas = ({ imageUrl, existingAnnotations, onSave, disabled }) =
 
       {/* Status Info */}
       <div className="text-sm text-gray-600 bg-blue-50 p-3 rounded">
-        <strong>Status:</strong> {annotations.length} annotation(s) | 
-        <strong> Tool:</strong> {currentTool} | 
-        <strong> Color:</strong> <span style={{color: currentColor}}>{currentColor}</span> |
+        <strong>Status:</strong> {annotations.length} annotation(s) |
+        <strong> Tool:</strong> {currentTool} |
+        <strong> Color:</strong> <span style={{ color: currentColor }}>{currentColor}</span> |
         <strong> Canvas:</strong> {canvasSize.width}×{canvasSize.height}px
       </div>
 
@@ -345,7 +344,7 @@ const AnnotationCanvas = ({ imageUrl, existingAnnotations, onSave, disabled }) =
           onMouseDown={handleMouseDown}
           onMouseUp={handleMouseUp}
           className="cursor-crosshair max-w-full block"
-          style={{ 
+          style={{
             width: '100%',
             height: 'auto',
             maxHeight: '600px'
@@ -366,7 +365,7 @@ const AnnotationCanvas = ({ imageUrl, existingAnnotations, onSave, disabled }) =
             </span>
           )}
         </div>
-        
+
         <button
           onClick={handleSave}
           disabled={disabled || annotations.length === 0}

@@ -12,7 +12,7 @@ const SubmissionDetail = ({ submission, onBack }) => {
     try {
       setLoading(true);
       setError('');
-      
+
       const response = await submissionsAPI.annotate(currentSubmission._id, {
         annotationData,
         annotatedImagePath: `uploads/images/annotated-${currentSubmission._id}.jpg`
@@ -31,7 +31,7 @@ const SubmissionDetail = ({ submission, onBack }) => {
     try {
       setLoading(true);
       setError('');
-      
+
       const response = await submissionsAPI.generatePDF(currentSubmission._id);
       setCurrentSubmission(response.data.submission);
       setSuccess('PDF report generated successfully!');
@@ -57,7 +57,7 @@ const SubmissionDetail = ({ submission, onBack }) => {
         <button onClick={onBack} className="btn-secondary">
           ← Back to Dashboard
         </button>
-        
+
         <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusBadge(currentSubmission.status)}`}>
           Status: {currentSubmission.status}
         </span>
@@ -100,10 +100,11 @@ const SubmissionDetail = ({ submission, onBack }) => {
       {/* Image Annotation Section */}
       <div className="card">
         <h2 className="text-xl font-semibold mb-4">Image Review & Annotation</h2>
-        
+
         {currentSubmission.originalImagePath && (
+          // Update the AnnotationCanvas imageUrl prop
           <AnnotationCanvas
-            imageUrl={`http://localhost:5000/${currentSubmission.originalImagePath}`}
+            imageUrl={`/api/submissions/${currentSubmission._id}/image/original`}
             existingAnnotations={currentSubmission.annotationData}
             onSave={handleAnnotationSave}
             disabled={loading}
@@ -124,7 +125,7 @@ const SubmissionDetail = ({ submission, onBack }) => {
               {loading ? 'Generating...' : 'Generate PDF Report'}
             </button>
           )}
-          
+
           {currentSubmission.status === 'reported' && (
             <div className="flex gap-2">
               <span className="text-green-600 font-medium">✓ Report Generated</span>

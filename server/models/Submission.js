@@ -5,10 +5,28 @@ const submissionSchema = new mongoose.Schema({
   patientName: { type: String, required: true },
   email: { type: String, required: true },
   note: { type: String },
-  originalImagePath: { type: String, required: true },
-  annotatedImagePath: { type: String },
+  
+  // Store images as Base64 strings in MongoDB
+  originalImage: {
+    data: { type: String }, // Base64 image data
+    contentType: { type: String }, // image/jpeg, image/png, etc.
+    filename: { type: String }
+  },
+  
+  annotatedImage: {
+    data: { type: String }, // Base64 annotated image
+    contentType: { type: String },
+    filename: { type: String }
+  },
+  
+  // Store PDF as Base64 string in MongoDB
+  reportPDF: {
+    data: { type: String }, // Base64 PDF data
+    contentType: { type: String, default: 'application/pdf' },
+    filename: { type: String }
+  },
+  
   annotationData: { type: Object },
-  reportPath: { type: String },
   status: { 
     type: String, 
     enum: ['uploaded', 'annotated', 'reported'], 
