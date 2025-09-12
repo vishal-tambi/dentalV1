@@ -1,13 +1,17 @@
 import axios from 'axios';
 
-// Create axios instance with base configuration
+// Use environment variable for API URL
+const API_BASE_URL = import.meta.env.VITE_API_URL;
+
+console.log('API Base URL:', API_BASE_URL);
+
 const API = axios.create({
-  baseURL: 'http://localhost:5000/api',
+  baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
+  timeout: 30000,
 });
-
 // Add token to requests automatically
 API.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');
