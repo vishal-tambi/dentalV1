@@ -110,7 +110,6 @@ const SubmissionList = ({ refreshTrigger }) => {
           </div>
 
           <div className="mt-4 flex gap-2">
-            // Replace the image display parts with API calls
             {submission.originalImage && submission.originalImage.hasData && (
               <img
                 src={`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'}/api/submissions/${submission._id}/image/original`}
