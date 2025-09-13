@@ -3,7 +3,6 @@
 
 > 🚀 A modern **MERN-stack dental healthcare application** where patients upload dental images 🖼️ and doctors review, annotate, and generate professional PDF reports 📑.
 
-![OralVis Banner](https://via.placeholder.com/1000x300?text=OralVis+Healthcare+App+Banner)
 
 ![MERN Stack](https://img.shields.io/badge/Stack-MERN-green?style=for-the-badge)
 ![React](https://img.shields.io/badge/React-18-blue?style=for-the-badge\&logo=react)
@@ -114,9 +113,7 @@ npm run dev
 
 | Patient Upload                                                                   | Image Annotation                                                                   | Admin Report                                                                             |
 | -------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| <img width="1919" height="910" alt="Screenshot 2025-09-13 203357" src="https://github.com/user-attachments/assets/78d7b35d-0b1f-4eb7-bae4-5dbe65968eb6" />| <img width="1897" height="901" alt="Screenshot 2025-09-13 203500" src="https://github.com/user-attachments/assets/d33ad9fd-1f50-4e6a-96f1-55c715fcb3d7" />
- | <img width="1894" height="895" alt="Screenshot 2025-09-13 203509" src="https://github.com/user-attachments/assets/95d3aa89-6a5b-4ec8-a5c6-4447a15a97b9" />
- |
+| <img width="1919" height="910" alt="Screenshot 2025-09-13 203357" src="https://github.com/user-attachments/assets/78d7b35d-0b1f-4eb7-bae4-5dbe65968eb6" />| <img width="1897" height="901" alt="Screenshot 2025-09-13 203500" src="https://github.com/user-attachments/assets/d33ad9fd-1f50-4e6a-96f1-55c715fcb3d7" />| <img width="1894" height="895" alt="Screenshot 2025-09-13 203509" src="https://github.com/user-attachments/assets/95d3aa89-6a5b-4ec8-a5c6-4447a15a97b9" />
 
 ---
 
